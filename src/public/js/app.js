@@ -4,11 +4,12 @@
 
 const socket = io();
 const welcome = document.querySelector("#welcome");
-const form = welcome.querySelector("form");
+const welcomForm = welcome.querySelector("form");
 
 const room = document.querySelector("#room");
 const h3 = room.querySelector("h3");
 const ul = room.querySelector("ul");
+const roomForm = room.querySelector("form");
 
 room.hidden = true;
 let roomName;
@@ -25,9 +26,9 @@ function addMessage(message) {
   ul.appendChild(li);
 }
 
-function handleRoomSubmit(e) {
+function handleWelcomeSubmit(e) {
   e.preventDefault();
-  const input = form.querySelector("input");
+  const input = welcomForm.querySelector("input");
   //1. emit시에 타입정의하듯 첫째인자를 정함
   //2. 전달시 형식을 바꿀필요없이 알아서 socket이 바꿔줌
   //3. emit은 여러개의 arguments를 받을 수 있음. 종류는 제한이 없으나 함수를 넣고 싶다면 마지막에 넣어야 함
@@ -39,12 +40,33 @@ function handleRoomSubmit(e) {
   input.value = "";
 }
 
-form.addEventListener("submit", handleRoomSubmit);
+function handleRoomSubmit(e) {
+  e.preventDefault();
+  const li = document.createElement("li");
+  const input = room.querySelector("input");
+  socket.emit(
+    "newMessage",
+    roomName,
+    input.value,
+    addMessage(`YOU : ${input.value}`)
+  );
+  input.value = "";
+}
 
+welcomForm.addEventListener("submit", handleWelcomeSubmit);
+roomForm.addEventListener("submit", handleRoomSubmit);
 //@ on event 확인///
 
 socket.on("greeting", (id) => {
   addMessage(`someone entered : ${id}`);
+});
+
+socket.on("bye", (id) => {
+  addMessage(`someone left : ${id}`);
+});
+
+socket.on("chat", (msg, id) => {
+  addMessage(`${id} : ${msg}`);
 });
 
 // // 브라우저쪽 html을 살펴보면, 거기에서 해당 경로에 있는 js 파일을 요청한다.

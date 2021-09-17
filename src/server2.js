@@ -34,6 +34,18 @@ ioServer.on("connection", (socket) => {
     // 중요한점은, 알아서 room객체 내에서 나의 아이디를 제외하고 다른 아이디에만 emit 메소드를 실행한다는 점을 기억하자.
     socket.to(roomName).emit("greeting", socket.id);
   });
+
+  // 클라이언트측에서 브라우저 탭을 끄거나 할 때에,
+  // 자동으로 서버쪽에 disconnecting 요청을 전달한다
+  // 서버는 이것을 on으로 인지할 수 있으므로, 인지되는 순간 콜백함수를 실행시킨다.
+  // 클라이언트측에는 bye라는 타입의 키워드를 전송할 것이다.
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach((room) => socket.to(room).emit("bye", socket.id));
+  });
+
+  socket.on("newMessage", (roomName, msg) => {
+    socket.to(roomName).emit("chat", msg, socket.id);
+  });
 });
 
 server.listen(8080, () => console.log("connected"));
