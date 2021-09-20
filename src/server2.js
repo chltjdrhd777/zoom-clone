@@ -5,7 +5,8 @@
 
 import express from "express";
 import http from "http";
-import socketIO from "socket.io";
+import { Server } from "socket.io";
+import { instrument } from "@socket.io/admin-ui";
 
 const app = express();
 
@@ -14,25 +15,58 @@ app.set("views", __dirname + "/views");
 app.use("/public", express.static(__dirname + "/public"));
 
 app.get("/", (_, res) => res.render("home"));
-app.get("/*", (_, res) => res.redirect("/"));
+app.get("/video", (_, res) => res.render("video"));
+//app.get("/*", (_, res) => res.redirect("/"));
 
 //! server
 const server = http.createServer(app);
-const ioServer = socketIO(server);
+const ioServer = new Server(server, {
+  cors: {
+    origin: ["https://admin.socket.io"],
+    credentials: true,
+  },
+});
+
+instrument(ioServer, {
+  auth: false,
+});
+
+function publicFind() {
+  const { sids, rooms } = ioServer.sockets.adapter;
+
+  const publicRoom = [];
+  rooms.forEach((_, key) => {
+    if (!sids.get(key)) {
+      publicRoom.push(key);
+    }
+  });
+
+  return publicRoom;
+}
+
+function checkRoomSize(roomName) {
+  return ioServer.sockets.adapter.rooms.get(roomName)?.size;
+}
 
 ioServer.on("connection", (socket) => {
+  socket["userNick"] = "ANON";
+
   socket.on("enter_room", (roomName, done) => {
     // join => 말 그대로 set에다가 객체를 방처럼 만드는 것과 같다.
     // 거기 안에 들어가 있는 것은 각각의 소캣아이디들이다
     // 소켓아이디는 소캣의 그 자체를 대표하며,
     // 소캣 아이디들을 가지고 있다는 것은 각 소캣객체들에게 무언가를 실행할 수 있다는 뜻이다.
     socket.join(roomName);
-    done();
+    done(checkRoomSize(roomName));
 
     // roomname의 객체안에 들어가있는 값들을 조회하여, 각 소캣에게 emit하는 메소드를 실행한다.
     // 이때 emit에 대한 내용은 우리가 정의하는 이벤트타입이다(마치 클라이언트측에서 enter_room 형태로 요청을 보낸 것처럼)
     // 중요한점은, 알아서 room객체 내에서 나의 아이디를 제외하고 다른 아이디에만 emit 메소드를 실행한다는 점을 기억하자.
-    socket.to(roomName).emit("greeting", socket.id);
+    socket
+      .to(roomName)
+      .emit("greeting", socket.userNick, checkRoomSize(roomName));
+
+    ioServer.sockets.emit("room_change", publicFind());
   });
 
   // 클라이언트측에서 브라우저 탭을 끄거나 할 때에,
@@ -40,11 +74,23 @@ ioServer.on("connection", (socket) => {
   // 서버는 이것을 on으로 인지할 수 있으므로, 인지되는 순간 콜백함수를 실행시킨다.
   // 클라이언트측에는 bye라는 타입의 키워드를 전송할 것이다.
   socket.on("disconnecting", () => {
-    socket.rooms.forEach((room) => socket.to(room).emit("bye", socket.id));
+    socket.rooms.forEach((room) =>
+      socket.to(room).emit("bye", socket.userNick, room, checkRoomSize(room))
+    );
+  });
+
+  socket.on("disconnect", () => {
+    ioServer.sockets.emit("room_change", publicFind());
   });
 
   socket.on("newMessage", (roomName, msg) => {
-    socket.to(roomName).emit("chat", msg, socket.id);
+    socket
+      .to(roomName)
+      .emit("chat", msg, socket.userNick ? socket.userNick : socket.id);
+  });
+
+  socket.on("set_nickname", (nick) => {
+    socket["userNick"] = nick;
   });
 });
 

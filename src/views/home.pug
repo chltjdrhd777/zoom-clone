@@ -14,12 +14,22 @@ html(lang="en")
                 form
                     input(placeholder="room name", required, type="text")
                     button Enter Room
+                h4 open room list 
+                ul
             
             div#room 
                 h3
+                h2
                 ul 
-                form
+                form#nick
+                    input(placeholder="nickName", required, type="text")
+                    button Set your nickname
+                
+                form#message
                     input(placeholder="message", required, type="text")
                     button Send message
+            
+            button#video go to video section
+        
         script(src="/socket.io/socket.io.js")
         script(src="/public/js/app.js")
