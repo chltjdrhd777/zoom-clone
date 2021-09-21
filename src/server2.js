@@ -51,6 +51,24 @@ function checkRoomSize(roomName) {
 ioServer.on("connection", (socket) => {
   socket["userNick"] = "ANON";
 
+  //@ testPart for
+  socket.on("join_room", (roomName) => {
+    socket.join(roomName);
+    socket.to(roomName).emit("welcome");
+  });
+
+  socket.on("offer", (offer, roomName) => {
+    socket.to(roomName).emit("offer", offer);
+  });
+
+  socket.on("answer", (answer, roomName) => {
+    socket.to(roomName).emit("answer", answer);
+  });
+
+  socket.on("ice", (ice, roomName) => {
+    socket.to(roomName).emit("ice", ice);
+  });
+
   socket.on("enter_room", (roomName, done) => {
     // join => 말 그대로 set에다가 객체를 방처럼 만드는 것과 같다.
     // 거기 안에 들어가 있는 것은 각각의 소캣아이디들이다
